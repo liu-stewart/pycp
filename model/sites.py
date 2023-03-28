@@ -11,7 +11,7 @@ import numpy as np
 import re
 from monty.json import MSONable
 from pycp.pycp_typing import Coords, NDArray
-from pycp.method import translation, rotation
+from pycp.method import translation, rotation, axial_symmetry
 from pycp.pattern import pattern_element
 
 
@@ -79,6 +79,30 @@ class Sites(MSONable):
         """
         return self.__coordinates
 
+    @coordinates.setter
+    def coordinates(self, coordinates: Coords) -> None:
+        """Set the coordinates of the sites.
+
+        Args:
+            coordinates:
+                a list or ndarray with type (n, 3) or (3,).
+        """
+        if isinstance(coordinates, (np.ndarray, list)):
+            self.__coordinates = np.array(coordinates, dtype=np.float64)
+        else:
+            raise TypeError("You must supply a list or ndarray which can "
+                            "convert to float.")
+        if self.__coordinates.shape == (3,):
+            self.__coordinates = np.expand_dims(a=self.__coordinates, axis=0)
+        elif self.__coordinates.ndim == 2 and self.__coordinates.shape[1] == 3:
+            pass
+        else:
+            raise ValueError("Your input must meet one of the following "
+                             "two dimensions: (3,) or (n, 3)")
+        if len(self.__elements) != self.__coordinates.shape[0]:
+            raise ValueError("The length of elements must be equal to the "
+                             "number of coordinates.")
+
     @property
     def elements(self) -> list[str]:
         """The elements of the sites.
@@ -109,6 +133,19 @@ class Sites(MSONable):
         """
         self.__coordinates = rotation(self.__coordinates, angle, axis, anchor)
 
+    def axial_symmetry(self,
+                       anchor1: Coords,
+                       anchor2: Coords = [0, 0, 0]) -> None:
+        """Axial symmetry the coordinates.
+
+        Args:
+            anchor1: The first anchor.
+            anchor2: The second anchor.
+        """
+        self.__coordinates = axial_symmetry(self.__coordinates,
+                                            anchor1,
+                                            anchor2)
+
     def __repr__(self) -> str:
         """Return a string representation of the object."""
         return f"Sites(coordinates={self.__coordinates}, " \
@@ -133,3 +170,43 @@ class Sites(MSONable):
             a tuple contain the coordinates and element of the site.
         """
         return self.__coordinates[index], self.__elements[index]
+
+    def __setitem__(self, index: int, value: tuple[Coords, str]) -> None:
+        """Set the coordinates and element of the site.
+
+        Args:
+            index: The index of the site.
+            value: The coordinates and element of the site.
+        """
+        self.__coordinates[index] = value[0]
+        self.__elements[index] = value[1]
+
+    def __add__(self, other: Sites | tuple[Coords, str]) -> Sites:
+        """Add a site to the Sites.
+
+        Args:
+            other: The site which will be added.
+
+        Returns:
+            a new Sites object.
+        """
+        if isinstance(other, Sites):
+            coordinates = np.concatenate((self.__coordinates,
+                                          other.coordinates))
+            elements = self.__elements + other.elements
+        elif isinstance(other, (tuple, list)):
+            coordinates = np.concatenate((self.__coordinates,
+                                          np.expand_dims(other[0], axis=0)))
+            elements = self.__elements + [other[1]]
+        else:
+            raise TypeError("You must supply a Sites or a tuple.")
+        return Sites(coordinates, elements)
+
+    def remove(self, index: int) -> None:
+        """Remove a site from the Sites.
+
+        Args:
+            index: The index of the site.
+        """
+        self.__coordinates = np.delete(self.__coordinates, index, axis=0)
+        self.__elements.pop(index)

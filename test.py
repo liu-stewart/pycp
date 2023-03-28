@@ -1,6 +1,9 @@
 """a test doc."""
+from pycp.model.sites import Sites
 from pycp.model.lattice import Lattice
+from pycp.model.structure import Structure
+import numpy as np
+import pathlib
 
-la = Lattice.from_lengths_and_angles([12.1988, 12.9868, 7.0757],
-                                     [116.997, 106.317, 97.917])
-print(la.matrix)
+s = Structure.from_POSCAR(pathlib.Path("POSCAR"))
+print(s)

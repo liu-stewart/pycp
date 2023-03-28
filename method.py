@@ -1,7 +1,7 @@
 """This module supply some useful operation method."""
 
 import numpy as np
-from pycp_typing import Coords
+from pycp.pycp_typing import Coords
 
 
 def translation(coords: Coords, vector: Coords) -> np.ndarray:
@@ -48,3 +48,28 @@ def rotation(coords: Coords,
                   [t * x * y + s * z, t * y * y + c, t * y * z - s * x],
                   [t * x * z - s * y, t * y * z + s * x, t * z * z + c]])
     return np.dot(R, coords.T).T + anchor
+
+
+def axial_symmetry(coords: Coords,
+                   anchor1: Coords,
+                   anchor2: Coords = [0, 0, 0],
+                   ) -> np.ndarray:
+    """Axial symmetry the coordinates.
+
+    Args:
+        coords: The coordinates to be axial symmetry.
+        anchor1: The first anchor.
+        anchor2: The second anchor.
+
+    Returns:
+        The axial symmetry coordinates.
+    """
+    coords = np.array(coords, dtype=np.float64)
+    coords = coords - anchor2
+    anchor1 = np.array(anchor1, dtype=np.float64)
+    anchor2 = np.array(anchor2, dtype=np.float64)
+    axial_vector = (anchor1 - anchor2) / np.linalg.norm(anchor1 - anchor2)
+    axial_vector = np.expand_dims(axial_vector, axis=1)
+    vector = np.dot(coords, axial_vector) * axial_vector.T
+    coords = coords + 2 * (vector - coords)
+    return coords + anchor2
