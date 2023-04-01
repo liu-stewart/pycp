@@ -104,8 +104,8 @@ class Lattice(MSONable):
 
     def __repr__(self) -> str:
         """Return the representation of the lattice."""
-        return "Lattice(matrix={})".format(self.__matrix)
+        return "Lattice(matrix=\n{})".format(self.__matrix)
 
     def __str__(self) -> str:
         """Return the string of the lattice."""
-        return "Lattice(matrix={})".format(self.__matrix)
+        return "Lattice(matrix=\n{})".format(self.__matrix)

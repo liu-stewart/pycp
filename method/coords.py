@@ -2,6 +2,7 @@
 
 import numpy as np
 from pycp.pycp_typing import Coords
+from enum import Enum
 
 
 def translation(coords: Coords, vector: Coords) -> np.ndarray:

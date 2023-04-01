@@ -11,7 +11,7 @@ import numpy as np
 import re
 from monty.json import MSONable
 from pycp.pycp_typing import Coords, NDArray
-from pycp.method import translation, rotation, axial_symmetry
+from pycp.method.coords import translation, rotation, axial_symmetry
 from pycp.pattern import pattern_element
 
 
@@ -148,13 +148,13 @@ class Sites(MSONable):
 
     def __repr__(self) -> str:
         """Return a string representation of the object."""
-        return f"Sites(coordinates={self.__coordinates}, " \
+        return f"Sites(coordinates=\n{self.__coordinates}, " \
             f"elements={self.__elements})"
 
     def __str__(self) -> str:
         """Return a string representation of the object."""
-        return f"Sites(coordinates={self.__coordinates}, " \
-               f"elements={self.__elements})"
+        return f"Sites(coordinates=\n{self.__coordinates}, " \
+               f"\n\nelements=\n{self.__elements})"
 
     def __len__(self) -> int:
         """Return the number of sites."""

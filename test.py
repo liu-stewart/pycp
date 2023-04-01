@@ -1,9 +1,7 @@
-"""a test doc."""
-from pycp.model.sites import Sites
-from pycp.model.lattice import Lattice
-from pycp.model.structure import Structure
-import numpy as np
-import pathlib
+"""test doc."""
 
-s = Structure.from_POSCAR(pathlib.Path("POSCAR"))
+from pycp.model.structure import Structure
+from pycp.vasp.inputs import Poscar
+
+s = Structure.read("POSCAR")
 print(s)
