@@ -1,11 +1,9 @@
 """This module is used to store the class Lattice."""
-
 import numpy as np
 from pycp.pycp_typing import Coords
-from monty.json import MSONable
 
 
-class Lattice(MSONable):
+class Lattice():
     """This class is used to store the lattice vectors.
 
     Properties:
@@ -22,28 +20,41 @@ class Lattice(MSONable):
             matrix: The lattice matrix.
         """
         if isinstance(matrix, (np.ndarray, list)):
-            self.__matrix = np.array(matrix, dtype=np.float64)
+            self._matrix = np.array(matrix, dtype=np.float64)
         else:
             raise TypeError("You must supply a list or ndarray which can "
                             "convert to float.")
-        if self.__matrix.shape != (3, 3):
+        if self._matrix.shape != (3, 3):
             raise ValueError("The lattice matrix must be a 3x3 matrix.")
 
     @property
     def matrix(self) -> np.ndarray:
         """Return the matrix of the lattice."""
-        return self.__matrix
+        return self._matrix
+    
+    @matrix.setter
+    def matrix(self, matrix: Coords) -> None:
+        """Set the matrix of the lattice."""
+        if isinstance(matrix, (np.ndarray, list)):
+            self._matrix = np.array(matrix, dtype=np.float64)
+        else:
+            raise TypeError("You must supply a list or ndarray which can "
+                            "convert to float.")
+        if self._matrix.shape != (3, 3):
+            raise ValueError("The lattice matrix must be a 3x3 matrix.")
+        if type(self) is not Lattice:
+            self.periodic_boundary_conditions()  # type: ignore
 
     @property
     def length(self) -> Coords:
         """Return the length of the lattice."""
-        return np.linalg.norm(self.__matrix, axis=1)
+        return np.linalg.norm(self._matrix, axis=1)
 
     @property
     def angle(self) -> np.ndarray:
         """Return the angle of the lattice."""
         angle = np.arccos(
-            np.sum(self.__matrix * np.roll(self.__matrix, 1, axis=0),
+            np.sum(self._matrix * np.roll(self._matrix, 1, axis=0),
                    axis=1) / (self.length * np.roll(self.length, 1)))
         angle = np.degrees(np.roll(angle, 1, axis=0))
         return angle
@@ -51,18 +62,7 @@ class Lattice(MSONable):
     @property
     def volume(self) -> float:
         """Return the volume of the lattice."""
-        return np.linalg.det(self.__matrix)
-
-    @matrix.setter
-    def matrix(self, matrix: Coords) -> None:
-        """Set the matrix of the lattice."""
-        if isinstance(matrix, (np.ndarray, list)):
-            self.__matrix = np.array(matrix, dtype=np.float64)
-        else:
-            raise TypeError("You must supply a list or ndarray which can "
-                            "convert to float.")
-        if self.__matrix.shape != (3, 3):
-            raise ValueError("The lattice matrix must be a 3x3 matrix.")
+        return np.linalg.det(self._matrix)
 
     @classmethod
     def from_lengths_and_angles(cls, lengths: Coords, angles: Coords
@@ -102,10 +102,65 @@ class Lattice(MSONable):
                                matrix[2, 1] ** 2)
         return cls(matrix)
 
-    def __repr__(self) -> str:
-        """Return the representation of the lattice."""
-        return "Lattice(matrix=\n{})".format(self.__matrix)
-
     def __str__(self) -> str:
         """Return the string of the lattice."""
-        return "Lattice(matrix=\n{})".format(self.__matrix)
+        return "Lattice(matrix=\n{})".format(self._matrix)
+
+    def __getitem__(self, index) -> Coords:
+        """Return the vector of the lattice."""
+        return self.matrix[index]
+
+    def __setitem__(self, index, vector: Coords) -> None:
+        """Set the vector of the lattice."""
+        self.matrix[index] = vector
+
+    def distance(self, coord1: Coords, coord2: Coords) -> float:
+        """Calculate the distance between two sites.
+
+        Consider the periodic boundary conditions.
+
+        Args:
+            site1: The first site.
+            site2: The second site.
+
+        Returns:
+            The distance between two sites.
+        """
+        coord1 = np.array(coord1)
+        coord2 = np.array(coord2)
+        lattice = self.matrix
+        dist = np.linalg.norm(coord1 - coord2)  # type: ignore
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                for k in range(-1, 2):
+                    a = np.linalg.norm(coord1 - coord2 +  # type: ignore
+                                       i * lattice[0] +
+                                       j * lattice[1] +
+                                       k * lattice[2])
+                    dist = min(dist, a)  # type: ignore
+        return dist
+
+    def is_same_coord(self, coord1: Coords, coord2: Coords, tol=1e-2) -> bool:
+        """Check if two coordinates are the same.
+
+        Consider the periodic boundary conditions.
+
+        Args:
+            coord1: The first coordinate.
+            coord2: The second coordinate.
+
+        Returns:
+            True if two coordinates are the same.
+        """
+        coord1 = np.array(coord1)
+        coord2 = np.array(coord2)
+        matrix = self.matrix
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                for k in range(-1, 2):
+                    if np.allclose(coord1, coord2 +  # type: ignore
+                                   i * matrix[0] +
+                                   j * matrix[1] +
+                                   k * matrix[2], atol=tol):
+                        return True
+        return False

@@ -1,0 +1,14 @@
+#!/bin/sh
+#BSUB -q mem128
+#BSUB -n 24
+#BSUB -e %j.err
+#BSUB -o %j.out
+#BSUB -R "span[ptile=24]"
+hostfile=`echo $LSB_DJOB_HOSTFILE`
+NP=`cat $hostfile | wc -l`
+cd $LS_SUBCWD
+
+
+module load vasp/5.4.4
+
+mpirun -np $NP vasp_std > cal.out

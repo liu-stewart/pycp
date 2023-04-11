@@ -2,7 +2,6 @@
 
 which is used to represent the structure of a solid.
 """
-
 from __future__ import annotations
 import numpy as np
 from monty.json import MSONable
@@ -11,9 +10,10 @@ from pycp.model.sites import Sites
 from pycp.model.lattice import Lattice
 from pycp.pattern import pattern_element
 import pathlib
+import copy
 
 
-class Structure(Sites):
+class Structure(Sites, Lattice):
     """This class is used to represent the structure of a solid.
 
     Properties:
@@ -33,79 +33,96 @@ class Structure(Sites):
     def __init__(self,
                  coordinates: Coords,
                  elements: list[str] | str,
-                 lattice: Lattice,
-                 *args):
+                 matrix: Coords,
+                 comment: str = "Default comment",
+                 selective_dynamics: list[list[bool]] = None,  # type: ignore
+                 velocities: Coords = None):  # type: ignore
         """Initialize a Structure.
 
         Args:
             coordinates: The coordinates of the sites.
             elements: The elements of the sites.
-            lattice: The lattice of the structure.
+            matrix: The lattice of the structure.
+            comment: The comment of the POSCAR.
+            selective_dynamics: The selective dynamics of the sites.
+            velocities: The velocities of the sites.
         """
-        if not isinstance(lattice, Lattice):
-            raise TypeError("lattice must be a Lattice object")
-        self.__lattice = lattice
-        super().__init__(coordinates, elements)
+        Sites.__init__(self, coordinates, elements)
+        Lattice.__init__(self, matrix)
+        self._comment = comment
+        if selective_dynamics is not None:
+            self._selective_dynamics = selective_dynamics
+        else:
+            self._selective_dynamics = [[True, True, True]
+                                        for i in range(len(self))]
+        if velocities is not None:
+            self._velocities = velocities
+        else:
+            self._velocities = np.array([[0, 0, 0] for i in range(len(self))])
         self.periodic_boundary_conditions()
-
-    @property
-    def lattice(self) -> Lattice:
-        """Return the lattice of the structure."""
-        return self.__lattice
-
-    @lattice.setter
-    def lattice(self, lattice: Lattice) -> None:
-        """Set the lattice of the structure."""
-        if not isinstance(lattice, Lattice):
-            raise TypeError("lattice must be a Lattice object")
-        self.__lattice = lattice
-        self.periodic_boundary_conditions()
-
-    @property
-    def cartesian_coords(self) -> NDArray:
-        """Return the cartesian coordinates of the sites."""
-        return self.coordinates
 
     @property
     def fractional_coords(self) -> NDArray:
         """Return the fractional coordinates of the sites."""
-        return np.linalg.solve(self.lattice.matrix, self.cartesian_coords.T).T
+        return self.coordinates @ np.linalg.inv(self.matrix)
+
+    @property
+    def selective_dynamics(self) -> list[list[bool]]:
+        """Return the selective dynamics of the sites."""
+        return self._selective_dynamics
+
+    @property
+    def comment(self) -> str:
+        """Return the comment of the POSCAR."""
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment: str) -> None:
+        """Set the comment of the POSCAR."""
+        self._comment = comment
+
+    @selective_dynamics.setter
+    def selective_dynamics(self, selective_dynamics: list[list[bool]]) -> None:
+        """Set the selective dynamics of the sites."""
+        if selective_dynamics is not None:
+            if len(selective_dynamics) != len(self):
+                raise ValueError("selective dynamics must "
+                                 "be the same length as the number of sites")
+            self._selective_dynamics = selective_dynamics
+        else:
+            self._selective_dynamics = [[True, True, True]
+                                        for i in range(len(self))]
+
+    @property
+    def velocities(self) -> Coords:
+        """Return the velocities of the sites."""
+        return self._velocities
+
+    @velocities.setter
+    def velocities(self, velocities: Coords) -> None:
+        """Set the velocities of the sites."""
+        if velocities is not None:
+            if len(velocities) != len(self):
+                raise ValueError("velocities must be the same "
+                                 "length as the number of sites")
+            self._velocities = velocities
+        else:
+            self._velocities = np.array([[0, 0, 0] for i in range(len(self))])
 
     def periodic_boundary_conditions(self) -> None:
         """Apply periodic boundary conditions to the fractional coordinates."""
         coords = self.fractional_coords
         coords -= np.floor(coords)
-        self.coordinates = coords @ self.__lattice.matrix
-
-    def rotate(self, angle: float,
-               axis: Coords = [0, 0, 1],
-               anchor: Coords = [0, 0, 0]) -> None:
-        """Rotate the structure."""
-        super().rotate(angle, axis, anchor)
-        self.periodic_boundary_conditions()
-
-    def translate(self, vector: Coords) -> None:
-        """Translate the structure."""
-        super().translate(vector)
-        self.periodic_boundary_conditions()
-
-    def axial_symmetry(self,
-                       axis: Coords = ...,
-                       anchor: Coords = [0, 0, 0]) -> None:
-        """Apply axial symmetry to the structure."""
-        super().axial_symmetry(axis, anchor)
-        self.periodic_boundary_conditions()
-
-    def __repr__(self) -> str:
-        """Return the representation of the structure."""
-        return super().__repr__() + f"\n\n{self.lattice}"
+        self._coordinates = coords @ self.matrix
 
     def __str__(self) -> str:
-        """Return the string representation of the structure."""
-        return super().__str__() + f"\n\n{self.lattice}"
+        """Return the representation of the structure."""
+        sites = super(Structure, self).__str__()
+        lattice = super(Sites, self).__str__()
+        return sites + f"\n\n{lattice}"
 
     @classmethod
-    def read(cls, file: pathlib.Path | str, fmt: str = ""):
+    def read(cls, from_file: pathlib.Path | str, fmt: str = "poscar"):
         """Create a Structure object from a file.
 
         Args:
@@ -122,16 +139,17 @@ class Structure(Sites):
             >>> structure = Structure.read("POSCAR")
             >>> poscar = Poscar.read("POSCAR")
         """
-        if isinstance(file, str):
-            file = pathlib.Path(file)
-        if "POSCAR" in file.name.upper() or "CONTCAR" in file.name.upper() \
-                or fmt == "poscar":
-            return cls(*cls._from_POSCAR(file))
+        if isinstance(from_file, str):
+            from_file = pathlib.Path(from_file)
+        if "POSCAR" in from_file.name.upper() or \
+            "CONTCAR" in from_file.name.upper() or \
+                fmt == "poscar":
+            return cls(*cls._from_POSCAR(from_file))
         else:
             raise ValueError("Unknown file format")
 
     @classmethod
-    def _from_POSCAR(cls, file: pathlib.Path | str = "POSCAR") -> tuple:
+    def _from_POSCAR(cls, from_file: pathlib.Path | str = "POSCAR") -> tuple:
         """Create a Structure object from a POSCAR file.
 
         Args:
@@ -142,7 +160,7 @@ class Structure(Sites):
             the elements, the coordinates, the selective dynamics and the
             velocities.
         """
-        with open(file, 'r') as f:
+        with open(from_file, 'r') as f:
             lines = f.readlines()
             lines = [line.strip() for line in lines]
             if lines[-1] == "":
@@ -151,19 +169,20 @@ class Structure(Sites):
         comment = lines[0]
         velocities = None
         scale = float(lines[1])
-        lattice = Lattice([line.split() for line in lines[2:5]])
-        lattice.matrix *= scale
+        matrix = np.array([line.split() for line in lines[2:5]],
+                          dtype=np.float64)
+        matrix *= scale
         elements = lines[5].split()
         num_elements = [int(num) for num in lines[6].split()]
         elements = [element for element, num in zip(elements, num_elements)
                     for _ in range(num)]
         if not lines[7].startswith("S") or lines[7].startswith("s"):
-            coords = np.array([line.split()
+            coords = np.array([line.split()[:3]
                                for line in lines[8:8 + sum(num_elements)]])
             coords = coords.astype(float)
             selective_dynamics = None
             if lines[7].startswith("D") or lines[7].startswith("d"):
-                coords = coords @ lattice.matrix
+                coords = coords @ matrix
             elif lines[7].startswith("C") or lines[7].startswith("c"):
                 pass
             else:
@@ -175,9 +194,13 @@ class Structure(Sites):
             coords = np.array(coords)
             selective_dynamics = [[True if s.startswith("T") else False
                                   for s in line.split()[3:]]
+                                  if len(line.split()) == 6
+                                  else
+                                  [True if s.startswith("T") else False
+                                   for s in line.split()[4:]]
                                   for line in lines[9:9 + sum(num_elements)]]
             if lines[8].startswith("D") or lines[8].startswith("d"):
-                coords = coords @ lattice.matrix
+                coords = coords @ matrix
             elif lines[8].startswith("C") or lines[8].startswith("c"):
                 pass
             else:
@@ -200,5 +223,142 @@ class Structure(Sites):
             if len(velocities) != len(coords):
                 raise ValueError("The number of velocities "
                                  "must equal to the elements or coords.")
-        return coords, elements, lattice, comment, \
+        return coords, elements, matrix, comment, \
             selective_dynamics, velocities
+
+    def remove_duplicates(self, tol: float = 1e-2) -> None:
+        """Remove duplicate sites.
+
+        Args:
+            tol: The tolerance of the distance between two sites.
+        """
+        self.periodic_boundary_conditions()
+        coords = self.coordinates
+        elements = self.elements
+        unique_coords = []
+        unique_elements = []
+        velocities = self.velocities
+        selective_dynamics = self.selective_dynamics
+        unique_velocities = []
+        unique_selective_dynamics = []
+        for coord, element, velocity, selective_dynamic \
+                in zip(coords, elements, velocities, selective_dynamics):
+            if not any(self.is_same_coord(coord, unique_coord, tol=tol)
+                       for unique_coord in unique_coords):
+                unique_coords.append(coord)
+                unique_elements.append(element)
+                unique_velocities.append(velocity)
+                unique_selective_dynamics.append(selective_dynamic)
+        self.coordinates = np.array(unique_coords)
+        self.elements = unique_elements
+        self.velocities = np.array(unique_velocities)
+        self.selective_dynamics = unique_selective_dynamics
+
+    def sort(self) -> None:
+        """Sort the sites by the elements."""
+        all = list(zip(self.coordinates, self.elements,
+                       self.velocities, self.selective_dynamics))
+        all.sort(key=lambda x: x[1])
+        all = list(zip(*all))
+        self.coordinates = np.array(all[0])
+        self.elements = list(all[1])  # type: ignore
+        self.velocities = np.array(all[2])
+        self.selective_dynamics = list(all[3])  # type: ignore
+
+    def select(self, elements: list[str] | str) -> Structure:
+        """Select sites by the elements.
+
+        Args:
+            elements: The elements to select.
+        """
+        if isinstance(elements, str):
+            elements = [elements]
+        all = list(zip(self.coordinates, self.elements,
+                       self.velocities, self.selective_dynamics))
+        all = [x for x in all if x[1] in elements]
+        all = list(zip(*all))
+        coordinates = np.array(all[0])
+        elements = list(all[1])  # type: ignore
+        velocities = np.array(all[2])
+        selective_dynamics = list(all[3])
+
+        return self.__class__(coordinates, elements, self.matrix,
+                            self.comment, selective_dynamics, velocities) # type: ignore
+
+    def __add__(self,
+                other: Sites | tuple[Coords, str] | Structure
+            ):
+        """Add sites to the structure.
+
+        Args:
+            other: The sites to add.
+        """
+        if isinstance(other, (Sites, tuple, list)):
+            if isinstance(other, (tuple, list)):
+                other = Sites(other[0], other[1])
+            coords = other.coordinates
+            elements = other.elements
+            other = Structure(coords, elements, self.matrix)
+        coords = np.concatenate((self.coordinates, other.coordinates))
+        elements = self.elements + other.elements
+        velocities = np.concatenate((self.velocities, other.velocities))
+        selective_dynamics = self.selective_dynamics + other.selective_dynamics
+        return self.__class__(coords, elements, self.matrix,
+                            self.comment, selective_dynamics, velocities)
+
+    def copy(self) -> Structure:
+        """Return a copy of the structure."""
+        return copy.deepcopy(self)
+
+    def supercell(self, n: int | tuple[int, int, int] | list[int]):
+        """Make a supercell of the structure.
+
+        Args:
+            n: The number of supercells in each direction.
+        """
+        if isinstance(n, int):
+            n = (n, n, n)
+        coords = []
+        elements = []
+        velocities = []
+        selective_dynamics = []
+        matrix = self.matrix * n
+        for i in range(n[0]):
+            for j in range(n[1]):
+                for k in range(n[2]):
+                    for coord, element, velocity, selective_dynamic \
+                            in zip(self.coordinates, self.elements,
+                                   self.velocities, self.selective_dynamics):
+                        coords.append(coord + i * self.matrix[0] +
+                                      j * self.matrix[1] +
+                                      k * self.matrix[2])
+                        elements.append(element)
+                        velocities.append(velocity)
+                        selective_dynamics.append(selective_dynamic)
+        coords = np.array(coords)
+        velocities = np.array(velocities)
+        return self.__class__(coords, elements, matrix,
+                            self.comment, selective_dynamics, velocities)
+    
+    def base_transformation(self, vectors):
+        """Transform the structure to a new base.
+
+        Args:
+            base: The new base.
+        """
+        vectors = np.array(vectors[:2])
+        vectors = np.row_stack((vectors, vectors[0] + vectors[1], np.zeros(3)))
+        fvectors = vectors @ np.linalg.inv(self.matrix)
+        ran = np.array([max(component) - min(component) for component in fvectors.T])
+        ran = np.ceil(ran).astype(int)
+        ran[2] = 1
+        structure = self.supercell(ran)  # type: ignore
+        vectors = np.row_stack((vectors[:2], self.matrix[2]))
+        structure.matrix = vectors
+        structure.remove_duplicates()
+        return structure
+    
+    def write(self, to_file: pathlib.Path | str, fmt="poscar"):
+        """Nothing."""
+        if isinstance(to_file, str):
+            to_file = pathlib.Path(to_file)

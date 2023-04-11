@@ -1,8 +1,6 @@
 """This module supply some useful operation method."""
-
 import numpy as np
 from pycp.pycp_typing import Coords
-from enum import Enum
 
 
 def translation(coords: Coords, vector: Coords) -> np.ndarray:
@@ -74,3 +72,36 @@ def axial_symmetry(coords: Coords,
     vector = np.dot(coords, axial_vector) * axial_vector.T
     coords = coords + 2 * (vector - coords)
     return coords + anchor2
+
+
+def temp_mirror(coords: Coords,
+                anchor1,
+                anchor2):
+    """Temp mirror the coordinates.
+
+    Args:
+        coords: The coordinates to be temp mirror.
+        anchor1: The first anchor.
+        anchor2: The second anchor.
+
+    Returns:
+        The temp mirror coordinates.
+    """
+    ascoords = axial_symmetry(coords, anchor1, anchor2)
+    for index in range(len(ascoords)):
+        ascoords[index][2] = coords[index][2]
+    return ascoords
+
+
+def perturbation(coords, scope=0.1):
+    """Perturb the coordinates.
+
+    Args:
+        coords: The coordinates to be perturbed.
+        scope: The perturbation scope.
+
+    Returns:
+        The perturbed coordinates.
+    """
+    coords = np.array(coords, dtype=np.float64)
+    return coords + np.random.uniform(-scope, scope, coords.shape)

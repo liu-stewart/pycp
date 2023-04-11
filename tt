@@ -1,0 +1,31 @@
+ALGO = Fast
+EDIFF = 1E-05
+EDIFFG = -0.02
+ENCUT = 450
+ISIF = 2
+ISMEAR = 0
+ISPIN = 1
+ISTART = 0
+IVDW = 1
+LCHARG = .FALSE.
+LORBIT = 11
+LREAL = Auto
+LWAVE = .FALSE.
+NEDOS = 2001
+NPAR = 4
+SIGMA = 0.05
+SYSTEM = statickpoints for band structure L-G-X-U K-G
+ 10
+line
+reciprocal
+  0.50000  0.50000  0.50000   L
+  0.00000  0.00000  0.00000   G
+
+  0.00000  0.00000  0.00000   G
+  0.00000  0.50000  0.50000   X
+
+  0.00000  0.50000  0.50000   X
+  0.25000  0.62500  0.62500   U
+
+  0.37500  0.7500   0.37500   K
+  0.00000  0.00000  0.00000   G

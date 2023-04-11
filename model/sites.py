@@ -4,19 +4,16 @@ Sites class is used to store the coordinates and elements of the sites,
 and the class has some useful methods to transform the coordinates and
 elements.
 """
-
-
 from __future__ import annotations
 import numpy as np
 import re
-from monty.json import MSONable
 from pycp.pycp_typing import Coords, NDArray
-from pycp.method.coords import translation, rotation, axial_symmetry
+from pycp.method.coords import translation, rotation, axial_symmetry, perturbation
 from pycp.method.coords import temp_mirror
 from pycp.pattern import pattern_element
 
 
-class Sites(MSONable):
+class Sites():
     """This class is used to store the coordinates and elements of the sites.
 
     Properties:
@@ -96,6 +93,8 @@ class Sites(MSONable):
         else:
             raise ValueError("Your input must meet one of the following "
                              "two dimensions: (3,) or (n, 3)")
+        if type(self) is not Sites:
+            self.periodic_boundary_conditions()  # type: ignore
 
     @property
     def elements(self) -> list[str]:
@@ -138,7 +137,7 @@ class Sites(MSONable):
         Args:
             vector: The translation vector.
         """
-        self.coordinates = translation(self._coordinates, vector)
+        self.coordinates = translation(self.coordinates, vector)
 
     def rotate(self,
                angle: float,
@@ -151,7 +150,7 @@ class Sites(MSONable):
             axis: The rotation axis.
             anchor: The rotation anchor.
         """
-        self.coordinates = rotation(self._coordinates, angle, axis, anchor)
+        self.coordinates = rotation(self.coordinates, angle, axis, anchor)
 
     def axial_symmetry(self,
                        anchor1: Coords,
@@ -162,7 +161,15 @@ class Sites(MSONable):
             anchor1: The first anchor.
             anchor2: The second anchor.
         """
-        self.coordinates = axial_symmetry(self._coordinates, anchor1, anchor2)
+        self.coordinates = axial_symmetry(self.coordinates, anchor1, anchor2)
+    
+    def perturbation(self, scope: float = 0.1) -> None:
+        """Perturbation the coordinates.
+
+        Args:
+            scope: The standard deviation of the normal distribution.
+        """
+        self.coordinates = perturbation(self.coordinates, scope)
 
     def temp_mirror(self,
                     anchor1: Coords,
@@ -173,12 +180,7 @@ class Sites(MSONable):
             anchor1: The first anchor.
             anchor2: The second anchor.
         """
-        self.coordinates = temp_mirror(self._coordinates, anchor1, anchor2)
-
-    def __repr__(self) -> str:
-        """Return a string representation of the object."""
-        return f"Sites(coordinates=\n{self.coordinates}, " \
-            f"elements={self.elements})"
+        self.coordinates = temp_mirror(self.coordinates, anchor1, anchor2)
 
     def __str__(self) -> str:
         """Return a string representation of the object."""
@@ -187,7 +189,7 @@ class Sites(MSONable):
 
     def __len__(self) -> int:
         """Return the number of sites."""
-        return len(self.elements)
+        return len(self.coordinates)
 
     def __getitem__(self, index: int) -> tuple[NDArray, str]:
         """Return the coordinates and element of the site.
@@ -220,11 +222,11 @@ class Sites(MSONable):
             a new Sites object.
         """
         if isinstance(other, Sites):
-            coordinates = np.concatenate((self._coordinates,
+            coordinates = np.concatenate((self.coordinates,
                                           other.coordinates))
             elements = self.elements + other.elements
         elif isinstance(other, (tuple, list)):
-            coordinates = np.concatenate((self._coordinates,
+            coordinates = np.concatenate((self.coordinates,
                                           np.expand_dims(other[0], axis=0)))
             elements = self.elements + [other[1]]
         else:

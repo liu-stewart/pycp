@@ -1,0 +1,17 @@
+ALGO = Fast 
+EDIFF = 1E-05 
+EDIFFG = -0.02 
+ENCUT = 450 
+ISIF = 2 
+ISMEAR = 0 
+ISPIN = 1 
+ISTART = 0 
+IVDW = 1 
+LCHARG = .FALSE. 
+LORBIT = 11 
+LREAL = Auto 
+LWAVE = .FALSE. 
+NEDOS = 2001 
+NPAR = 4 
+SIGMA = 0.05 
+SYSTEM = static 
