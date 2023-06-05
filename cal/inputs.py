@@ -10,60 +10,7 @@ import subprocess
 import numpy as np
 
 
-class Poscar(Structure):
-    """This class used to represent a POSCAR file."""
-
-    def __str__(self) -> str:
-        """Return the string representation of the POSCAR."""
-        comment = self.comment
-        matrix = self.matrix
-        elements = self.elements
-        independent_elements = ['start']
-        elements_count = []
-        for element in elements:
-            if element != independent_elements[-1]:
-                independent_elements.append(element)
-                elements_count.append(1)
-            else:
-                elements_count[-1] += 1
-        independent_elements = independent_elements[1:]
-        selective_dynamics = [["T" if i else "F" for i in j]
-                              for j in self.selective_dynamics]
-        string = f"{comment}\n" + \
-            f"   1\n" + \
-            f"    {matrix[0][0]:.16f}" + \
-            f" {matrix[0][1]:.16f} {matrix[0][2]:.16f}\n" + \
-            f"    {matrix[1][0]:.16f}" + \
-            f" {matrix[1][1]:.16f} {matrix[1][2]:.16f}\n" + \
-            f"    {matrix[2][0]:.16f}" + \
-            f" {matrix[2][1]:.16f} {matrix[2][2]:.16f}\n" + \
-            f"   {'    '.join(independent_elements)}\n" + \
-            f"   {'    '.join([str(i) for i in elements_count])}\n" + \
-            f"Selective Dynamics\n" + \
-            f"Direct\n"
-        for i in range(len(self)):
-            string += f"  {self.fractional_coords[i][0]:.16f}" + \
-                f" {self.fractional_coords[i][1]:.16f}" + \
-                f" {self.fractional_coords[i][2]:.16f}"
-            string += f"  {selective_dynamics[i][0]}" + \
-                f" {selective_dynamics[i][1]}" + \
-                f" {selective_dynamics[i][2]}"
-            string += "\n"
-        string += "\n"
-        for i in range(len(self)):
-            string += f"  {self.velocities[i][0]:.16f}" + \
-                f" {self.velocities[i][1]:.16f}" + \
-                f" {self.velocities[i][2]:.16f}\n"
-        return string
-
-    def write(self, to_file: str | pathlib.Path = "POSCAR") -> None:
-        """Write the POSCAR to a file."""
-        if isinstance(to_file, str):
-            to_file = pathlib.Path(to_file)
-        if not to_file.parent.exists():
-            to_file.parent.mkdir(parents=True)
-        with open(to_file, "w+") as file:
-            file.write(str(self))
+Poscar = Structure
 
 
 class Incar(dict):

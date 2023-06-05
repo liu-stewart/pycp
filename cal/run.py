@@ -6,6 +6,7 @@ from pycp.cal.script import Script
 import os
 import subprocess
 import re
+import sys
 
 
 class RunVasp():
@@ -17,7 +18,7 @@ class RunVasp():
                  kpoints: Kpoints | None = None,
                  potcar: Potcar | None = None,
                  script: Script | None = None,
-                 work_dir: pathlib.Path | str = ".",
+                 work_dir: pathlib.Path | str = "defaultRun",
                  continue_list=[],
                  slab: int = 3
                  ):
@@ -33,6 +34,8 @@ class RunVasp():
         if script is None:
             script = Script()
         self.script = script
+        if work_dir == "defaultRun":
+            work_dir = pathlib.Path(sys.argv[0][:-3])
         self.work_dir = pathlib.Path(work_dir)
         self.continue_list = continue_list
         self.init_dir = pathlib.Path(".").absolute()

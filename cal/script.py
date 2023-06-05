@@ -8,7 +8,7 @@ class Script():
     """This class used to store the run script."""
 
     def __init__(self,
-                 queue_name: str = "mem128",
+                 queue_name: str = "mem256",
                  number_node: int = 1,
                  cpu_per_node: int = 0,
                  source_list=[],

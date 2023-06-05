@@ -8,9 +8,11 @@ from __future__ import annotations
 import numpy as np
 import re
 from pycp.pycp_typing import Coords, NDArray
-from pycp.method.coords import translation, rotation, axial_symmetry, perturbation
+from pycp.method.coords import translation, rotation
+from pycp.method.coords import axial_symmetry, perturbation
 from pycp.method.coords import temp_mirror
 from pycp.pattern import pattern_element
+import copy
 
 
 class Sites():
@@ -131,18 +133,19 @@ class Sites():
                 "You must enter elements in the following format:\n"
                 "['H','H','O'] or 'HHO' or 'H2O'.")
 
-    def translate(self, vector: Coords) -> None:
+    def translate(self, vector: Coords) -> Sites:
         """Translate the coordinates.
 
         Args:
             vector: The translation vector.
         """
         self.coordinates = translation(self.coordinates, vector)
+        return self
 
     def rotate(self,
                angle: float,
                axis: Coords = [0, 0, 1],
-               anchor: Coords = [0, 0, 0]) -> None:
+               anchor: Coords = [0, 0, 0]) -> Sites:
         """Rotate the coordinates.
 
         Args:
@@ -151,10 +154,11 @@ class Sites():
             anchor: The rotation anchor.
         """
         self.coordinates = rotation(self.coordinates, angle, axis, anchor)
+        return self
 
     def axial_symmetry(self,
                        anchor1: Coords,
-                       anchor2: Coords = [0, 0, 0]) -> None:
+                       anchor2: Coords = [0, 0, 0]) -> Sites:
         """Axial symmetry the coordinates.
 
         Args:
@@ -162,18 +166,20 @@ class Sites():
             anchor2: The second anchor.
         """
         self.coordinates = axial_symmetry(self.coordinates, anchor1, anchor2)
-    
-    def perturbation(self, scope: float = 0.1) -> None:
+        return self
+
+    def perturbation(self, scope: float = 0.1) -> Sites:
         """Perturbation the coordinates.
 
         Args:
             scope: The standard deviation of the normal distribution.
         """
         self.coordinates = perturbation(self.coordinates, scope)
+        return self
 
     def temp_mirror(self,
                     anchor1: Coords,
-                    anchor2: Coords) -> None:
+                    anchor2: Coords) -> Sites:
         """Temp mirror the coordinates.
 
         Args:
@@ -181,17 +187,18 @@ class Sites():
             anchor2: The second anchor.
         """
         self.coordinates = temp_mirror(self.coordinates, anchor1, anchor2)
+        return self
 
     def __str__(self) -> str:
         """Return a string representation of the object."""
         return f"Sites(coordinates=\n{self.coordinates}, " \
-               f"\n\nelements=\n{self.elements})"
+               f"\n\nelements=\n{self.elements})\n"
 
     def __len__(self) -> int:
         """Return the number of sites."""
         return len(self.coordinates)
 
-    def __getitem__(self, index: int) -> tuple[NDArray, str]:
+    def __getitem__(self, index: int) -> Sites:
         """Return the coordinates and element of the site.
 
         Args:
@@ -200,7 +207,7 @@ class Sites():
         Returns:
             a tuple contain the coordinates and element of the site.
         """
-        return self.coordinates[index], self.elements[index]
+        return Sites(self.coordinates[index], self.elements[index])
 
     def __setitem__(self, index: int, value: tuple[Coords, str]) -> None:
         """Set the coordinates and element of the site.
@@ -244,3 +251,20 @@ class Sites():
         for i in sorted(index, reverse=True):
             self._coordinates = np.delete(self._coordinates, i, axis=0)
             self._elements.pop(i)
+
+    def copy(self) -> Sites:
+        """Return a copy of the Sites."""
+        return copy.deepcopy(self)
+
+    def __iter__(self) -> Iterator[Sites]:
+        """Return an iterator of the Sites."""
+        self.__iterindex = 0
+        return self
+
+    def __next__(self) -> Sites:
+        """Return the next site."""
+        if self.__iterindex < len(self):
+            self.__iterindex += 1
+            return self[self.__iterindex - 1]
+        else:
+            raise StopIteration

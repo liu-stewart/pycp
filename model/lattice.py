@@ -31,7 +31,7 @@ class Lattice():
     def matrix(self) -> np.ndarray:
         """Return the matrix of the lattice."""
         return self._matrix
-    
+
     @matrix.setter
     def matrix(self, matrix: Coords) -> None:
         """Set the matrix of the lattice."""
